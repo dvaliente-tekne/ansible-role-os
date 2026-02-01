@@ -1,0 +1,131 @@
+---
+- name: Resolve host configuration
+  ansible.builtin.set_fact:
+    os_config: "{{ host_configs[os_hostname] | default(host_configs['default']) }}"
+  tags:
+    - os
+    - config
+
+- name: Set OS variables from host config
+  ansible.builtin.set_fact:
+    os_kernel: "{{ os_config.kernel }}"
+    os_drive: "{{ os_config.drive }}"
+    os_params: "{{ os_config.params }}"
+  tags:
+    - os
+    - config
+
+- name: Display resolved configuration
+  ansible.builtin.debug:
+    msg: "Host: {{ os_hostname }} | Kernel: {{ os_kernel }} | Drive: {{ os_drive }}"
+    verbosity: 1
+  tags:
+    - os
+    - config
+
+# =============================================================================
+# Package Installation
+# =============================================================================
+
+- name: Install base system packages
+  community.general.pacman:
+    name: "{{ os_packages }}"
+    state: present
+  tags:
+    - os
+    - packages
+
+# Locale Configuration
+- name: Set system locale
+  ansible.builtin.lineinfile:
+    path: /etc/locale.conf
+    state: present
+    line: "LANG={{ os_locale }}"
+    create: true
+    mode: '0644'
+  tags:
+    - os
+    - locale
+
+- name: Enable locale in locale.gen
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: '^#?{{ os_locale | regex_escape }}'
+    line: "{{ os_locale }} UTF-8"
+  notify: Generate locales
+  tags:
+    - os
+    - locale
+
+- name: Flush handlers to run locale-gen now
+  ansible.builtin.meta: flush_handlers
+  tags:
+    - os
+    - locale
+
+# Timezone Configuration
+- name: Set timezone
+  ansible.builtin.file:
+    src: "/usr/share/zoneinfo/{{ os_timezone }}"
+    dest: /etc/localtime
+    owner: root
+    group: root
+    state: link
+    force: true
+  notify: Sync hardware clock
+  tags:
+    - os
+    - timezone
+
+- name: Enable NTP synchronization
+  ansible.builtin.command:
+    cmd: /usr/bin/timedatectl set-ntp true
+  changed_when: false
+  tags:
+    - os
+    - timezone
+
+# Mirror Configuration
+- name: Update pacman mirrorlist
+  ansible.builtin.command:
+    cmd: >-
+      /usr/bin/reflector
+      --country '{{ os_mirror_country }}'
+      --latest {{ os_mirror_count }}
+      --sort rate
+      --protocol {{ os_mirror_protocols }}
+      --age {{ os_mirror_age }}
+      --save /etc/pacman.d/mirrorlist
+  changed_when: false
+  tags:
+    - os
+    - mirrors
+
+# EFI Boot Configuration
+- name: Delete existing EFI boot entry
+  ansible.builtin.command:
+    cmd: "/usr/bin/efibootmgr -B -b {{ os_boot_entry_to_delete }}"
+  when:
+    - os_manage_efi | bool
+    - os_delete_existing_boot_entry | bool
+  failed_when: false
+  changed_when: false
+  tags:
+    - os
+    - efi
+
+- name: Create EFI boot entry
+  ansible.builtin.command:
+    cmd: >-
+      /usr/bin/efibootmgr
+      --disk /dev/{{ os_drive }}
+      --part {{ os_efi_partition }}
+      --create
+      --label "{{ os_efi_label }}"
+      --loader /vmlinuz-{{ os_kernel }}
+      --unicode " root=LABEL=ROOT rw initrd=\{{ os_microcode }}.img initrd=\initramfs-{{ os_kernel }}.img {{ os_params }}"
+  when: os_manage_efi | bool
+  changed_when: true
+  tags:
+    - os
+    - efi

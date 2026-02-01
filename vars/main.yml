@@ -1,0 +1,3 @@
+---
+# Get hostname from cached fact or hostvars
+os_hostname: "{{ cached_hostname | default(hostvars['localhost']['hostname']) | default(ansible_hostname) | upper }}"
