@@ -15,4 +15,5 @@ galaxy_info:
     - locale
     - boot
 
-dependencies: []
+dependencies:
+  - role: ansible-role-user

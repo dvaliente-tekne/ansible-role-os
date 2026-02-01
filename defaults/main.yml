@@ -1,19 +1,17 @@
 ---
 # defaults file for os role
 
-# Base system packages to install
-os_packages:
-  - base-devel
-  - git
-  - curl
-  - make
-  - pkg-config
-  - dbus
-  - sqlite
-  - openbsd-netcat
-  - irqbalance
-  - schedtool
-  - schedtoold
+# User directories to create for each user
+os_user_directories:
+  - .config/systemd/user
+  - .config/autostart
+  - .config/remmina
+  - .vim/autoload
+  - .vim/bundle
+  - .vim/colors
+  - bin
+  - .gnupg
+  - .ssh
 
 # Host-specific configurations (kernel, drive, params)
 host_configs:

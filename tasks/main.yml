@@ -24,16 +24,102 @@
     - config
 
 # =============================================================================
-# Package Installation
+# User Configuration
 # =============================================================================
 
-- name: Install base system packages
-  community.general.pacman:
-    name: "{{ os_packages }}"
-    state: present
+- name: Get user info for home directories
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ item.name }}"
+  loop: "{{ users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: user_info
   tags:
     - os
-    - packages
+    - user_config
+
+- name: Create user directories
+  ansible.builtin.file:
+    path: "{{ item.0.ansible_facts.getent_passwd[item.0.item.name][4] }}/{{ item.1 }}"
+    state: directory
+    owner: "{{ item.0.item.name }}"
+    group: "{{ item.0.item.group | default(default_group) }}"
+    mode: "{{ '0700' if item.1 in ['.gnupg', '.ssh'] else '0755' }}"
+  loop: "{{ user_info.results | product(os_user_directories) | list }}"
+  loop_control:
+    label: "{{ item.0.item.name }}/{{ item.1 }}"
+  tags:
+    - os
+    - user_config
+
+- name: Copy bashrc to each user
+  ansible.builtin.copy:
+    src: bashrc
+    dest: "{{ item.ansible_facts.getent_passwd[item.item.name][4] }}/.bashrc"
+    owner: "{{ item.item.name }}"
+    group: "{{ item.item.group | default(default_group) }}"
+    mode: '0644'
+  loop: "{{ user_info.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  tags:
+    - os
+    - user_config
+
+- name: Copy vimrc to each user
+  ansible.builtin.copy:
+    src: vimrc
+    dest: "{{ item.ansible_facts.getent_passwd[item.item.name][4] }}/.vimrc"
+    owner: "{{ item.item.name }}"
+    group: "{{ item.item.group | default(default_group) }}"
+    mode: '0644'
+  loop: "{{ user_info.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  tags:
+    - os
+    - user_config
+
+- name: Copy pikaur.conf to each user
+  ansible.builtin.copy:
+    src: pikaur.conf
+    dest: "{{ item.ansible_facts.getent_passwd[item.item.name][4] }}/.config/pikaur.conf"
+    owner: "{{ item.item.name }}"
+    group: "{{ item.item.group | default(default_group) }}"
+    mode: '0644'
+  loop: "{{ user_info.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  tags:
+    - os
+    - user_config
+
+# =============================================================================
+# System Configuration
+# =============================================================================
+
+- name: Ensure reflector config directory exists
+  ansible.builtin.file:
+    path: /etc/xdg/reflector
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - os
+    - system_config
+
+- name: Copy reflector.conf to system
+  ansible.builtin.copy:
+    src: reflector.conf
+    dest: /etc/xdg/reflector/reflector.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - os
+    - system_config
 
 # Locale Configuration
 - name: Set system locale
