@@ -3,8 +3,3 @@
   ansible.builtin.command:
     cmd: /usr/bin/locale-gen
   listen: Generate locales
-
-- name: Sync hardware clock
-  ansible.builtin.command:
-    cmd: /usr/bin/hwclock --systohc
-  listen: Sync hardware clock

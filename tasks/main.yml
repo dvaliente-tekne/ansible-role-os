@@ -1,100 +1,4 @@
 ---
-- name: Resolve host configuration
-  ansible.builtin.set_fact:
-    os_config: "{{ host_configs[os_hostname] | default(host_configs['default']) }}"
-  tags:
-    - os
-    - config
-
-- name: Set OS variables from host config
-  ansible.builtin.set_fact:
-    os_kernel: "{{ os_config.kernel }}"
-    os_drive: "{{ os_config.drive }}"
-    os_params: "{{ os_config.params }}"
-  tags:
-    - os
-    - config
-
-- name: Display resolved configuration
-  ansible.builtin.debug:
-    msg: "Host: {{ os_hostname }} | Kernel: {{ os_kernel }} | Drive: {{ os_drive }}"
-    verbosity: 1
-  tags:
-    - os
-    - config
-
-# =============================================================================
-# User Configuration
-# =============================================================================
-
-- name: Get user info for home directories
-  ansible.builtin.getent:
-    database: passwd
-    key: "{{ item.name }}"
-  loop: "{{ users }}"
-  loop_control:
-    label: "{{ item.name }}"
-  register: user_info
-  tags:
-    - os
-    - user_config
-
-- name: Create user directories
-  ansible.builtin.file:
-    path: "{{ item.0.ansible_facts.getent_passwd[item.0.item.name][4] }}/{{ item.1 }}"
-    state: directory
-    owner: "{{ item.0.item.name }}"
-    group: "{{ item.0.item.group | default(default_group) }}"
-    mode: "{{ '0700' if item.1 in ['.gnupg', '.ssh'] else '0755' }}"
-  loop: "{{ user_info.results | product(os_user_directories) | list }}"
-  loop_control:
-    label: "{{ item.0.item.name }}/{{ item.1 }}"
-  tags:
-    - os
-    - user_config
-
-- name: Copy bashrc to each user
-  ansible.builtin.copy:
-    src: bashrc
-    dest: "{{ item.ansible_facts.getent_passwd[item.item.name][4] }}/.bashrc"
-    owner: "{{ item.item.name }}"
-    group: "{{ item.item.group | default(default_group) }}"
-    mode: '0644'
-  loop: "{{ user_info.results }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  tags:
-    - os
-    - user_config
-
-- name: Copy vimrc to each user
-  ansible.builtin.copy:
-    src: vimrc
-    dest: "{{ item.ansible_facts.getent_passwd[item.item.name][4] }}/.vimrc"
-    owner: "{{ item.item.name }}"
-    group: "{{ item.item.group | default(default_group) }}"
-    mode: '0644'
-  loop: "{{ user_info.results }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  tags:
-    - os
-    - user_config
-
-- name: Copy pikaur.conf to each user
-  ansible.builtin.copy:
-    src: pikaur.conf
-    dest: "{{ item.ansible_facts.getent_passwd[item.item.name][4] }}/.config/pikaur.conf"
-    owner: "{{ item.item.name }}"
-    group: "{{ item.item.group | default(default_group) }}"
-    mode: '0644'
-  loop: "{{ user_info.results }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  tags:
-    - os
-    - user_config
-
 # =============================================================================
 # System Configuration
 # =============================================================================
@@ -149,27 +53,14 @@
     - os
     - locale
 
-# Timezone Configuration
-- name: Set timezone
-  ansible.builtin.file:
-    src: "/usr/share/zoneinfo/{{ os_timezone }}"
-    dest: /etc/localtime
-    owner: root
-    group: root
-    state: link
-    force: true
-  notify: Sync hardware clock
-  tags:
-    - os
-    - timezone
-
+# NTP Configuration
 - name: Enable NTP synchronization
   ansible.builtin.command:
     cmd: /usr/bin/timedatectl set-ntp true
   changed_when: false
   tags:
     - os
-    - timezone
+    - ntp
 
 # Mirror Configuration
 - name: Update pacman mirrorlist
@@ -187,31 +78,70 @@
     - os
     - mirrors
 
-# EFI Boot Configuration
-- name: Delete existing EFI boot entry
-  ansible.builtin.command:
-    cmd: "/usr/bin/efibootmgr -B -b {{ os_boot_entry_to_delete }}"
-  when:
-    - os_manage_efi | bool
-    - os_delete_existing_boot_entry | bool
-  failed_when: false
-  changed_when: false
-  tags:
-    - os
-    - efi
+# =============================================================================
+# Network Configuration
+# =============================================================================
 
-- name: Create EFI boot entry
-  ansible.builtin.command:
-    cmd: >-
-      /usr/bin/efibootmgr
-      --disk /dev/{{ os_drive }}
-      --part {{ os_efi_partition }}
-      --create
-      --label "{{ os_efi_label }}"
-      --loader /vmlinuz-{{ os_kernel }}
-      --unicode " root=LABEL=ROOT rw initrd=\{{ os_microcode }}.img initrd=\initramfs-{{ os_kernel }}.img {{ os_params }}"
-  when: os_manage_efi | bool
-  changed_when: true
+- name: Copy WiFi network configuration
+  ansible.builtin.template:
+    src: 80-wifi-station.network.j2
+    dest: /etc/systemd/network/80-wifi-station.network
+    owner: root
+    group: root
+    mode: '0644'
+  when: os_hostname in os_network_hosts
   tags:
     - os
-    - efi
+    - network
+
+- name: Copy Ethernet network configuration
+  ansible.builtin.template:
+    src: 89-ethernet.network.j2
+    dest: /etc/systemd/network/89-ethernet.network
+    owner: root
+    group: root
+    mode: '0644'
+  when: os_hostname in os_network_hosts
+  tags:
+    - os
+    - network
+
+- name: Enable and start iwd service (ASTER only)
+  ansible.builtin.systemd:
+    name: iwd.service
+    enabled: true
+    state: started
+  when: os_hostname == 'ASTER'
+  tags:
+    - os
+    - network
+    - wifi
+
+- name: Connect to WiFi network (ASTER only)
+  ansible.builtin.command:
+    cmd: /usr/bin/iwctl station wlan0 connect {{ os_wifi_ssid }}
+  when: os_hostname == 'ASTER'
+  changed_when: false
+  failed_when: false
+  tags:
+    - os
+    - network
+    - wifi
+
+- name: Enable and start systemd-networkd
+  ansible.builtin.systemd:
+    name: systemd-networkd.service
+    enabled: true
+    state: started
+  tags:
+    - os
+    - network
+
+- name: Enable and start systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved.service
+    enabled: true
+    state: started
+  tags:
+    - os
+    - network

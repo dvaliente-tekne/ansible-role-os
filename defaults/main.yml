@@ -1,67 +1,11 @@
 ---
 # defaults file for os role
 
-# User directories to create for each user
-os_user_directories:
-  - .config/systemd/user
-  - .config/autostart
-  - .config/remmina
-  - .vim/autoload
-  - .vim/bundle
-  - .vim/colors
-  - bin
-  - .gnupg
-  - .ssh
-
-# Host-specific configurations (kernel, drive, params)
-host_configs:
-  THEMIS:
-    kernel: linux
-    drive: nvme0n1
-    params: >-
-      intel_pstate=passive kernel.split_lock_mitigate=0 split_lock_detect=off
-      nowatchdog mitigations=off quiet loglevel=2 systemd.show_status=false
-      rd.udev.log_level=2
-  ASTER:
-    kernel: linux-tkg-alk
-    drive: nvme0n1
-    params: >-
-      enable_guc=3 intel_pstate=passive kernel.split_lock_mitigate=0
-      split_lock_detect=off nowatchdog mitigations=off quiet loglevel=2
-      systemd.show_status=false rd.udev.log_level=2
-  HEPHAESTUS:
-    kernel: linux-tkg-ntl
-    drive: sda
-    params: >-
-      intel_pstate=passive kernel.split_lock_mitigate=0 split_lock_detect=off
-      nowatchdog mitigations=off quiet loglevel=2 systemd.show_status=false
-      rd.udev.log_level=2
-  default:
-    kernel: linux-tkg-alk
-    drive: nvme0n1
-    params: >-
-      enable_guc=3 intel_pstate=passive kernel.split_lock_mitigate=0 split_lock_detect=off
-      nowatchdog mitigations=off quiet loglevel=2 systemd.show_status=false
-      rd.udev.log_level=2
-
 # Locale settings
 os_locale: en_US.UTF-8
-os_timezone: America/El_Salvador
 
 # Mirror settings
 os_mirror_country: 'United States'
 os_mirror_count: 100
 os_mirror_protocols: 'https,ftp'
 os_mirror_age: 24
-
-# CPU microcode (intel-ucode or amd-ucode)
-os_microcode: intel-ucode
-
-# EFI boot entry settings
-os_efi_label: BOOT
-os_efi_partition: 1
-
-# Safety toggles
-os_manage_efi: true
-os_delete_existing_boot_entry: true
-os_boot_entry_to_delete: 0

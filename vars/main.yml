@@ -1,3 +1,13 @@
 ---
-# Get hostname from cached fact or hostvars
-os_hostname: "{{ cached_hostname | default(hostvars['localhost']['hostname']) | default(ansible_hostname) | upper }}"
+# vars file for os role
+
+# Get hostname from cached fact or ansible facts
+os_hostname: "{{ cached_hostname | default(ansible_hostname) | upper }}"
+
+# Hosts that require network configuration files
+os_network_hosts:
+  - ASTER
+  - YUGEN
+
+# WiFi SSID for ASTER
+os_wifi_ssid: esher
