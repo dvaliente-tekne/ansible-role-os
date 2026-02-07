@@ -1,7 +1,7 @@
 ---
 galaxy_info:
   author: dvaliente
-  description: Configures Arch Linux OS settings including locale, timezone, mirrors, and EFI boot
+  description: Configures Arch Linux OS settings including locale, mirrors, NTP, and network
   license: MIT
   min_ansible_version: "2.10"
   platforms:
@@ -11,9 +11,8 @@ galaxy_info:
   galaxy_tags:
     - system
     - archlinux
-    - efi
     - locale
-    - boot
+    - network
+    - ntp
 
-dependencies:
-  - role: ansible-role-user
+dependencies: []
