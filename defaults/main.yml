@@ -1,6 +1,9 @@
 ---
 # defaults file for os role
 
+# Hostname (resolved from playbook pre_tasks)
+os_hostname: "{{ hostname }}"
+
 # Locale settings
 os_locale: en_US.UTF-8
 
@@ -9,3 +12,13 @@ os_mirror_country: 'United States'
 os_mirror_count: 100
 os_mirror_protocols: 'https,ftp'
 os_mirror_age: 24
+
+# Network settings
+os_network_hosts:
+  - ASTER
+  - THEMIS
+  - HEPHAESTUS
+  - YUGEN
+
+# WiFi settings (ASTER only)
+os_wifi_ssid: esher

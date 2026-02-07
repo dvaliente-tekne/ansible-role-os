@@ -53,31 +53,6 @@
     - os
     - locale
 
-# NTP Configuration
-- name: Enable NTP synchronization
-  ansible.builtin.command:
-    cmd: /usr/bin/timedatectl set-ntp true
-  changed_when: false
-  tags:
-    - os
-    - ntp
-
-# Mirror Configuration
-- name: Update pacman mirrorlist
-  ansible.builtin.command:
-    cmd: >-
-      /usr/bin/reflector
-      --country '{{ os_mirror_country }}'
-      --latest {{ os_mirror_count }}
-      --sort rate
-      --protocol {{ os_mirror_protocols }}
-      --age {{ os_mirror_age }}
-      --save /etc/pacman.d/mirrorlist
-  changed_when: false
-  tags:
-    - os
-    - mirrors
-
 # =============================================================================
 # Network Configuration
 # =============================================================================
@@ -117,17 +92,6 @@
     - network
     - wifi
 
-- name: Connect to WiFi network (ASTER only)
-  ansible.builtin.command:
-    cmd: /usr/bin/iwctl station wlan0 connect {{ os_wifi_ssid }}
-  when: os_hostname == 'ASTER'
-  changed_when: false
-  failed_when: false
-  tags:
-    - os
-    - network
-    - wifi
-
 - name: Enable and start systemd-networkd
   ansible.builtin.systemd:
     name: systemd-networkd.service
@@ -145,3 +109,61 @@
   tags:
     - os
     - network
+
+- name: Connect to WiFi network (ASTER only)
+  ansible.builtin.command:
+    cmd: /usr/bin/iwctl station wlan0 connect {{ os_wifi_ssid }}
+  when: os_hostname == 'ASTER'
+  changed_when: false
+  failed_when: false
+  tags:
+    - os
+    - network
+    - wifi
+
+# =============================================================================
+# Wait for Network Connectivity
+# =============================================================================
+
+- name: Wait for network connectivity
+  ansible.builtin.command:
+    cmd: ping -c 1 -W 2 archlinux.org
+  register: network_check
+  until: network_check.rc == 0
+  retries: 30
+  delay: 2
+  changed_when: false
+  tags:
+    - os
+    - network
+
+# =============================================================================
+# NTP Configuration (requires network)
+# =============================================================================
+
+- name: Enable NTP synchronization
+  ansible.builtin.command:
+    cmd: /usr/bin/timedatectl set-ntp true
+  changed_when: false
+  tags:
+    - os
+    - ntp
+
+# =============================================================================
+# Mirror Configuration (requires network to be up)
+# =============================================================================
+
+- name: Update pacman mirrorlist
+  ansible.builtin.command:
+    cmd: >-
+      /usr/bin/reflector
+      --country '{{ os_mirror_country }}'
+      --latest {{ os_mirror_count }}
+      --sort rate
+      --protocol {{ os_mirror_protocols }}
+      --age {{ os_mirror_age }}
+      --save /etc/pacman.d/mirrorlist
+  changed_when: false
+  tags:
+    - os
+    - mirrors
