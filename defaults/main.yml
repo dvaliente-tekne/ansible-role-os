@@ -21,4 +21,5 @@ os_network_hosts:
   - YUGEN
 
 # WiFi settings (ASTER only)
+# Set os_wifi_passphrase in vault (or -e) for non-interactive connect.
 os_wifi_ssid: esher

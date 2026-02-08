@@ -120,12 +120,32 @@
     - os
     - network
 
+- name: Require WiFi passphrase for ASTER
+  ansible.builtin.assert:
+    that:
+      - os_wifi_passphrase is defined
+      - os_wifi_passphrase | length > 0
+    fail_msg: "os_wifi_passphrase must be set (e.g. in vault) for ASTER WiFi connection."
+  when: os_hostname == 'ASTER'
+  tags:
+    - os
+    - network
+    - wifi
+
 - name: Connect to WiFi network (ASTER only)
   ansible.builtin.command:
-    cmd: /usr/bin/iwctl station wlan0 connect {{ os_wifi_ssid }}
+    argv:
+      - /usr/bin/iwctl
+      - station
+      - wlan0
+      - connect
+      - "{{ os_wifi_ssid }}"
+      - --passphrase
+      - "{{ os_wifi_passphrase }}"
   when: os_hostname == 'ASTER'
   changed_when: false
   failed_when: false
+  no_log: true
   tags:
     - os
     - network
