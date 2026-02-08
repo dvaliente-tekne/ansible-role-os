@@ -56,6 +56,8 @@
 # =============================================================================
 # Network Configuration
 # =============================================================================
+# Order: deploy templates first, then flush handlers, then enable/restart
+# services so they load the new config before WiFi connect.
 
 - name: Copy WiFi network configuration
   ansible.builtin.template:
@@ -83,31 +85,37 @@
     - os
     - network
 
-- name: Enable and start iwd service (ASTER only)
+- name: Flush handlers so networkd restarts with new config before enabling WiFi
+  ansible.builtin.meta: flush_handlers
+  tags:
+    - os
+    - network
+
+- name: Enable and restart iwd (ASTER only)
   ansible.builtin.systemd:
     name: iwd.service
     enabled: true
-    state: started
+    state: restarted
   when: os_hostname == 'ASTER'
   tags:
     - os
     - network
     - wifi
 
-- name: Enable and start systemd-networkd
+- name: Enable and restart systemd-networkd
   ansible.builtin.systemd:
     name: systemd-networkd.service
     enabled: true
-    state: started
+    state: restarted
   tags:
     - os
     - network
 
-- name: Enable and start systemd-resolved
+- name: Enable and restart systemd-resolved
   ansible.builtin.systemd:
     name: systemd-resolved.service
     enabled: true
-    state: started
+    state: restarted
   tags:
     - os
     - network
