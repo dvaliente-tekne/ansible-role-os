@@ -183,3 +183,40 @@
   tags:
     - os
     - mirrors
+
+# =============================================================================
+# System Scripts Installation
+# =============================================================================
+
+- name: Copy game script to /usr/local/bin
+  ansible.builtin.copy:
+    src: game
+    dest: /usr/local/bin/game
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - os
+    - scripts
+
+- name: Copy update script to /usr/local/bin
+  ansible.builtin.copy:
+    src: update
+    dest: /usr/local/bin/update
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - os
+    - scripts
+
+- name: Copy work script to /usr/local/bin
+  ansible.builtin.copy:
+    src: work
+    dest: /usr/local/bin/work
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - os
+    - scripts
