@@ -93,7 +93,9 @@
 
 - name: Enable and restart iwd (ASTER only)
   ansible.builtin.systemd:
-    name: iwd.service
+    name:
+      - iwd.service
+      - acpid.service
     enabled: true
     state: restarted
   when: os_hostname == 'ASTER'
