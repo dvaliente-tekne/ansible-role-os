@@ -93,11 +93,12 @@
 
 - name: Enable and restart bluetooth and acpid
   ansible.builtin.systemd:
-    name:
-      - bluetooth.service
-      - acpid.service
+    name: "{{ item }}"
     enabled: true
     state: restarted
+  loop:
+    - bluetooth.service
+    - acpid.service
   when: os_hostname in ['ASTER', 'YUGEN']
   tags:
     - os
