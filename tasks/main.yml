@@ -91,11 +91,21 @@
     - os
     - network
 
-- name: Enable and restart iwd (ASTER only)
+- name: Enable and restart bluetooth and acpid
   ansible.builtin.systemd:
     name:
-      - iwd.service
+      - bluetooth.service
       - acpid.service
+    enabled: true
+    state: restarted
+  when: os_hostname in ['ASTER', 'YUGEN']
+  tags:
+    - os
+    - network
+
+- name: Enable and restart iwd (ASTER only)
+  ansible.builtin.systemd:
+    name: iwd.service
     enabled: true
     state: restarted
   when: os_hostname == 'ASTER'
@@ -134,19 +144,56 @@
     - network
     - wifi
 
+- name: Resolve WiFi interface name (ASTER only, auto-detect)
+  ansible.builtin.shell: "ls /sys/class/net | grep -E '^wl' | head -1"
+  register: _wifi_interface_cmd
+  until: _wifi_interface_cmd.stdout | trim | length > 0
+  retries: 10
+  delay: 2
+  changed_when: false
+  when:
+    - os_hostname == 'ASTER'
+    - os_wifi_interface | default('') | length == 0
+  tags:
+    - os
+    - network
+    - wifi
+
+- name: Set WiFi interface for ASTER
+  ansible.builtin.set_fact:
+    os_wifi_interface_resolved: "{{ os_wifi_interface if (os_wifi_interface | default('') | length > 0) else ((_wifi_interface_cmd.stdout | trim) | default('wlan0')) }}"
+  when: os_hostname == 'ASTER'
+  tags:
+    - os
+    - network
+    - wifi
+
+- name: Wait for WiFi interface to appear (ASTER only)
+  ansible.builtin.wait_for:
+    path: "/sys/class/net/{{ os_wifi_interface_resolved }}"
+    timeout: 15
+  when: os_hostname == 'ASTER'
+  tags:
+    - os
+    - network
+    - wifi
+
 - name: Connect to WiFi network (ASTER only)
   ansible.builtin.command:
     argv:
       - /usr/bin/iwctl
       - station
-      - wlan0
+      - "{{ os_wifi_interface_resolved }}"
       - connect
       - "{{ os_wifi_ssid }}"
       - --passphrase
       - "{{ os_wifi_passphrase }}"
+  register: _iwctl_connect
+  until: _iwctl_connect.rc == 0
+  retries: 6
+  delay: 5
   when: os_hostname == 'ASTER'
   changed_when: false
-  failed_when: false
   no_log: true
   tags:
     - os

@@ -9,3 +9,10 @@
     name: systemd-networkd.service
     state: restarted
   listen: Restart systemd-networkd
+
+- name: restart bluetooth
+  ansible.builtin.systemd:
+    name: bluetooth.service
+    state: restarted
+  listen: restart bluetooth
+  when: ansible_service_mgr == 'systemd'

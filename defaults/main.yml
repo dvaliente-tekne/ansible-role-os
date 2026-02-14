@@ -23,3 +23,5 @@ os_network_hosts:
 # WiFi settings (ASTER only)
 # Set os_wifi_passphrase in vault (or -e) for non-interactive connect.
 os_wifi_ssid: esher
+# Interface name (e.g. wlan0, wlp2s0). Leave empty to auto-detect first wlan interface.
+os_wifi_interface: ""
