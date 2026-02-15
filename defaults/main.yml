@@ -11,7 +11,7 @@ os_locale: en_US.UTF-8
 os_mirror_country: 'United States'
 os_mirror_count: 100
 os_mirror_protocols: 'https,ftp'
-os_mirror_age: 24
+os_mirror_age: 168
 
 # Network settings
 os_network_hosts:
