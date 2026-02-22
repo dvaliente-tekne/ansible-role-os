@@ -25,6 +25,30 @@
     - os
     - system_config
 
+# =============================================================================
+# CPU power / governor
+# =============================================================================
+
+- name: Set CPU governor to performance in cpupower-service.conf
+  ansible.builtin.lineinfile:
+    path: /etc/default/cpupower-service.conf
+    regexp: "^#?GOVERNOR=.*"
+    line: "GOVERNOR='performance'"
+    create: true
+    mode: '0644'
+  tags:
+    - os
+    - cpupower
+
+- name: Enable cpupower.service (do not start)
+  ansible.builtin.systemd:
+    name: cpupower
+    enabled: true
+    state: stopped
+  tags:
+    - os
+    - cpupower
+
 # Locale Configuration
 - name: Set system locale
   ansible.builtin.lineinfile:
@@ -66,7 +90,7 @@
     owner: root
     group: root
     mode: '0644'
-  when: os_hostname in os_network_hosts
+  when: os_hostname in ['ASTER', 'YUGEN']
   notify: Restart systemd-networkd
   tags:
     - os
@@ -79,7 +103,69 @@
     owner: root
     group: root
     mode: '0644'
-  when: os_hostname in os_network_hosts
+  when: os_hostname in ['ASTER', 'YUGEN']
+  notify: Restart systemd-networkd
+  tags:
+    - os
+    - network
+
+# SSH and bridge (br0) network configuration
+- name: Ensure sshd_config.d directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - os
+    - network
+
+- name: Copy ssh.conf to sshd_config.d
+  ansible.builtin.copy:
+    src: ssh.conf
+    dest: /etc/ssh/sshd_config.d/ssh.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - os
+    - network
+
+- name: Copy 25-br0.netdev to systemd-network (THEMIS)
+  ansible.builtin.copy:
+    src: 25-br0.netdev
+    dest: /etc/systemd/network/25-br0.netdev
+    owner: root
+    group: root
+    mode: '0644'
+  when: os_hostname == 'THEMIS'
+  notify: Restart systemd-networkd
+  tags:
+    - os
+    - network
+
+- name: Copy 25-br0-en.network to systemd-network (THEMIS)
+  ansible.builtin.copy:
+    src: 25-br0-en.network
+    dest: /etc/systemd/network/25-br0-en.network
+    owner: root
+    group: root
+    mode: '0644'
+  when: os_hostname == 'THEMIS'
+  notify: Restart systemd-networkd
+  tags:
+    - os
+    - network
+
+- name: Deploy 25-br0.network with hostname (THEMIS)
+  ansible.builtin.template:
+    src: 25-br0.network.j2
+    dest: /etc/systemd/network/25-br0.network
+    owner: root
+    group: root
+    mode: '0644'
+  when: os_hostname == 'THEMIS'
   notify: Restart systemd-networkd
   tags:
     - os
@@ -265,6 +351,7 @@
     owner: root
     group: root
     mode: '0755'
+  when: os_hostname in ['ASTER', 'YUGEN']
   tags:
     - os
     - scripts
@@ -287,6 +374,7 @@
     owner: root
     group: root
     mode: '0755'
+  when: os_hostname in ['ASTER', 'YUGEN']
   tags:
     - os
     - scripts
