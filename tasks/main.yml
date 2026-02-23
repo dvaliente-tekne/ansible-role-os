@@ -310,6 +310,59 @@
     - network
 
 # =============================================================================
+# Tekne bash repository and PATH (requires network)
+# =============================================================================
+
+- name: Ensure git is installed for cloning tekne bash repo
+  community.general.pacman:
+    name: git
+    state: present
+  tags:
+    - os
+    - tekne_bash
+
+- name: Create /srv/code/tekne directory
+  ansible.builtin.file:
+    path: /srv/code/tekne
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - os
+    - tekne_bash
+
+- name: Clone tekne bash repository into /srv/code/tekne/bash
+  ansible.builtin.git:
+    repo: https://github.com/dvaliente-tekne/bash
+    dest: /srv/code/tekne/bash
+    version: main
+    force: false
+  tags:
+    - os
+    - tekne_bash
+
+- name: Add tekne bash paths to /etc/profile via profile.d
+  ansible.builtin.copy:
+    dest: /etc/profile.d/tekne-bash.sh
+    content: |
+      # Tekne bash utilities - scripts and bin in PATH
+      append_path() {
+        case ":$PATH:" in
+          *:"$1":*) ;;
+          *) PATH="${PATH:+"$PATH:"}$1" ;;
+        esac
+      }
+      append_path '/srv/code/tekne/bash/scripts'
+      append_path '/srv/code/tekne/bash/bin'
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - os
+    - tekne_bash
+
+# =============================================================================
 # NTP Configuration (requires network)
 # =============================================================================
 
