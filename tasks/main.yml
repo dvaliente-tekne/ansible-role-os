@@ -321,13 +321,34 @@
     - os
     - tekne_bash
 
+- name: Ensure devs group exists (for /srv/code ownership)
+  ansible.builtin.group:
+    name: devs
+    state: present
+  tags:
+    - os
+    - tekne_bash
+    - srv_code
+
+- name: Create /srv/code directory (group devs, no access for others)
+  ansible.builtin.file:
+    path: /srv/code
+    state: directory
+    owner: root
+    group: devs
+    mode: '0770'
+  tags:
+    - os
+    - tekne_bash
+    - srv_code
+
 - name: Create /srv/code/tekne directory
   ansible.builtin.file:
     path: /srv/code/tekne
     state: directory
     owner: root
-    group: root
-    mode: '0755'
+    group: devs
+    mode: '0770'
   tags:
     - os
     - tekne_bash
@@ -342,6 +363,50 @@
     - os
     - tekne_bash
 
+- name: Clone tekne python repository into /srv/code/tekne/python
+  ansible.builtin.git:
+    repo: https://github.com/dvaliente-tekne/python
+    dest: /srv/code/tekne/python
+    version: main
+    force: false
+  tags:
+    - os
+    - tekne_python
+
+- name: Create /srv/code/tekne/ansible directory
+  ansible.builtin.file:
+    path: /srv/code/tekne/ansible
+    state: directory
+    owner: root
+    group: devs
+    mode: '0770'
+  tags:
+    - os
+    - tekne_ansible
+
+- name: Clone ansible role repositories into /srv/code/tekne/ansible
+  ansible.builtin.git:
+    repo: "{{ item }}"
+    dest: "/srv/code/tekne/ansible/{{ item | regex_replace('^.*/', '') }}"
+    version: main
+    force: false
+  loop: "{{ os_ansible_role_repos }}"
+  loop_control:
+    label: "{{ item | regex_replace('^.*/', '') }}"
+  tags:
+    - os
+    - tekne_ansible
+
+- name: Clone ansible-playbook repository into /srv/code/tekne/ansible/ansible-playbook
+  ansible.builtin.git:
+    repo: https://github.com/dvaliente-tekne/ansible-playbook
+    dest: /srv/code/tekne/ansible/ansible-playbook
+    version: main
+    force: false
+  tags:
+    - os
+    - tekne_ansible
+
 - name: Add tekne bash paths to /etc/profile via profile.d
   ansible.builtin.copy:
     dest: /etc/profile.d/tekne-bash.sh
@@ -355,6 +420,7 @@
       }
       append_path '/srv/code/tekne/bash/scripts'
       append_path '/srv/code/tekne/bash/bin'
+      append_path '/srv/code/tekne/python/src/tekne_tools'
     owner: root
     group: root
     mode: '0644'
@@ -394,40 +460,26 @@
     - mirrors
 
 # =============================================================================
-# System Scripts Installation
+# THEMIS-specific packages (local .pkg.tar.zst)
 # =============================================================================
 
-- name: Copy game script to /usr/local/bin
+- name: Copy THEMIS local packages to target
   ansible.builtin.copy:
-    src: game
-    dest: /usr/local/bin/game
+    src: "{{ item }}"
+    dest: "/tmp/{{ item }}"
     owner: root
     group: root
-    mode: '0755'
-  when: os_hostname in ['ASTER', 'YUGEN']
+    mode: '0644'
+  loop: "{{ os_themis_local_packages }}"
+  when: os_hostname == 'THEMIS'
   tags:
     - os
-    - scripts
+    - themis_packages
 
-- name: Copy update script to /usr/local/bin
-  ansible.builtin.copy:
-    src: update
-    dest: /usr/local/bin/update
-    owner: root
-    group: root
-    mode: '0755'
+- name: Install THEMIS local packages with pacman
+  ansible.builtin.command:
+    cmd: pacman -U --noconfirm {{ os_themis_local_packages | map('regex_replace', '^', '/tmp/') | join(' ') }}
+  when: os_hostname == 'THEMIS'
   tags:
     - os
-    - scripts
-
-- name: Copy work script to /usr/local/bin
-  ansible.builtin.copy:
-    src: work
-    dest: /usr/local/bin/work
-    owner: root
-    group: root
-    mode: '0755'
-  when: os_hostname in ['ASTER', 'YUGEN']
-  tags:
-    - os
-    - scripts
+    - themis_packages
